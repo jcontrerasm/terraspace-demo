@@ -1,0 +1,49 @@
+stages:
+  - stage: Build
+    jobs:
+    - job: Continuous_Integration
+      pool:
+        vmImage: 'ubuntu-20.04'
+      workspace:
+        clean: all
+      steps:
+      - task: DownloadSecureFile@1
+        name: devGcpCredentials
+        inputs:
+          secureFile: 'dev-gcp-core-service-account.json'
+        displayName: 'Download GCP Credentials.'
+        condition: and(succeeded(), eq(variables.environment, 'dev'))
+
+      - script: |
+          make validate ENVIRONMENT=$(environment) \
+          GCP_CREDENTIALS_DEPLOY=$(python ./scripts/path-gcp-credential.py $(environment))
+        displayName: 'Validate scripts.'
+        continueOnError: true
+
+      - script: |
+          make plan ENVIRONMENT=$(environment) \
+          GCP_CREDENTIALS_DEPLOY=$(python ./scripts/path-gcp-credential.py $(environment))
+        displayName: 'Deployment plan.'
+        continueOnError: true
+
+      - task: CopyFiles@2
+        inputs:
+          SourceFolder: '$(System.DefaultWorkingDirectory)'
+          Contents: |
+            app/**
+            config/**
+            environments/**
+            log/**
+            scripts/**
+            Gemfile
+            Makefile
+            Terrafile
+          TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        displayName: 'Copy results.'
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          artifactName: 'artifact-build'
+          publishLocation: 'Container'
+        displayName: 'Publish artifacts.'

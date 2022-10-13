@@ -1,0 +1,28 @@
+trigger: none
+
+parameters:
+- name: environment
+  displayName: Environment
+  default: dev
+  values:
+  - dev
+  - qa
+  - prod
+
+variables:
+- ${{ if or( eq(parameters.environment, 'dev'), eq(parameters.environment, 'qa'), eq(parameters.environment, 'master')) }}:
+  - group: ${{ parameters.environment }}-global-settings
+  - name: environment
+    value: ${{ parameters.environment }}
+  - name: releaseVersion
+    value: $(Build.BuildNumber)
+- ${{ if startsWith( variables['Build.SourceBranchName'], 'v' ) }}:
+  - group: master-global-settings
+  - name: environment
+    value: master
+  - name: releaseVersion
+    value: $(Build.BuildNumber)
+
+stages:
+  - template: ./builder.yml
+  - template: ./deployment.yml

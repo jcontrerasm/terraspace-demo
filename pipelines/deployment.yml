@@ -1,0 +1,43 @@
+stages:
+  - stage: Deploy
+    dependsOn: ['Build']
+    jobs:
+    - deployment: Deploy
+      displayName: 'Continuous_Delivery'
+      pool:
+        vmImage: 'ubuntu-20.04'
+      workspace:
+        clean: all
+      environment: infraestructure
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - task: DownloadSecureFile@1
+              name: devGcpCredentials
+              inputs:
+                secureFile: 'dev-gcp-core-service-account.json'
+              displayName: 'Download GCP Credentials.'
+              condition: and(succeeded(), eq(variables.environment, 'dev'))
+
+            - script: |
+                make up ENVIRONMENT=$(environment) \
+                GCP_CREDENTIALS_DEPLOY=$(python ./scripts/path-gcp-credential.py $(environment))
+              workingDirectory: /home/vsts/work/1/artifact-build
+              displayName: 'Deploy Infraestructure.'
+              continueOnError: true
+
+            - task: CopyFiles@2
+              inputs:
+                SourceFolder: /home/vsts/work/1/artifact-build
+                Contents: |
+                  log/**
+                TargetFolder: '$(Build.ArtifactStagingDirectory)'
+              displayName: 'Copy logs.'
+
+            - task: PublishBuildArtifacts@1
+              inputs:
+                pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+                artifactName: 'artifact-deploy'
+                publishLocation: 'Container'
+              displayName: 'Publish artifacts deployment.'

@@ -1,0 +1,10 @@
+project_id      = ""
+prefix          = ""
+names           = []
+set_admin_roles = true
+admins          = []
+versioning      = {}
+location        = ""
+storage_class   = "STANDARD"
+labels          = {}
+lifecycle_rules = []
